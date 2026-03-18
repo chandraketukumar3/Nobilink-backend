@@ -1,96 +1,88 @@
 const express = require("express");
+const ytdl = require("@distube/ytdl-core");
+const ffmpeg = require("fluent-ffmpeg");
+const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
 const cors = require("cors");
-const ytdlp = require("yt-dlp-exec");
 
 const app = express();
 app.use(cors());
 
-// ✅ Health check
+ffmpeg.setFfmpegPath(ffmpegPath);
+
+// ✅ Health
 app.get("/", (req, res) => {
-  res.send("Backend working 🚀");
+  res.send("Backend running 🚀");
 });
 
-
-// ✅ VIDEO INFO (FIXED - no more ytdl error)
+// ✅ INFO
 app.get("/info", async (req, res) => {
   try {
     const url = req.query.url;
 
-    if (!url) {
+    if (!url || !ytdl.validateURL(url)) {
       return res.status(400).json({ error: "Invalid URL" });
     }
 
-    const data = await ytdlp(url, {
-      dumpSingleJson: true,
-      noWarnings: true,
-      preferFreeFormats: true
-    });
+    const info = await ytdl.getInfo(url);
 
     res.json({
-      title: data.title,
-      thumbnail: data.thumbnail,
-      length: data.duration
+      title: info.videoDetails.title,
+      thumbnail: info.videoDetails.thumbnails[0].url,
+      length: info.videoDetails.lengthSeconds
     });
 
   } catch (err) {
-    console.error("INFO ERROR:", err);
-    res.status(500).json({ error: "Failed to fetch video details" });
+    console.error(err);
+    res.status(500).json({ error: "Failed" });
   }
 });
 
-
-// ✅ VIDEO DOWNLOAD (yt-dlp based)
-app.get("/download-video", async (req, res) => {
+// ✅ VIDEO
+app.get("/download-video", (req, res) => {
   try {
     const url = req.query.url;
 
-    if (!url) {
+    if (!url || !ytdl.validateURL(url)) {
       return res.status(400).send("Invalid URL");
     }
 
     res.setHeader("Content-Disposition", "attachment; filename=video.mp4");
 
-    const process = ytdlp.exec(url, {
-      format: "best",
-      output: "-"
-    });
-
-    process.stdout.pipe(res);
+    ytdl(url, {
+      quality: "highest",
+      filter: "audioandvideo"
+    }).pipe(res);
 
   } catch (err) {
-    console.error("VIDEO ERROR:", err);
-    res.status(500).send("Download failed");
+    console.error(err);
+    res.status(500).send("Download error");
   }
 });
 
-
-// ✅ MP3 DOWNLOAD (yt-dlp based)
-app.get("/download-mp3", async (req, res) => {
+// ✅ MP3
+app.get("/download-mp3", (req, res) => {
   try {
     const url = req.query.url;
 
-    if (!url) {
+    if (!url || !ytdl.validateURL(url)) {
       return res.status(400).send("Invalid URL");
     }
 
     res.setHeader("Content-Disposition", "attachment; filename=audio.mp3");
 
-    const process = ytdlp.exec(url, {
-      extractAudio: true,
-      audioFormat: "mp3",
-      output: "-"
-    });
-
-    process.stdout.pipe(res);
+    ffmpeg(ytdl(url, { quality: "highestaudio" }))
+      .audioBitrate(128)
+      .format("mp3")
+      .pipe(res);
 
   } catch (err) {
-    console.error("MP3 ERROR:", err);
-    res.status(500).send("Conversion failed");
+    console.error(err);
+    res.status(500).send("Conversion error");
   }
 });
 
-
-// ✅ START SERVER
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
+// ✅ START
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
