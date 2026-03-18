@@ -53,42 +53,33 @@ app.get("/download-video", (req, res) => {
   try {
     const url = req.query.url;
 
-    if (!url || !ytdl.validateURL(url)) {
+    if (!url) {
       return res.status(400).send("Invalid URL");
     }
 
-    res.setHeader("Content-Disposition", "attachment; filename=video.mp4");
-
-    ytdl(url, {
-      quality: "highest",
-      filter: "audioandvideo"
-    }).pipe(res);
+    // ✅ direct redirect to youtube (no crash)
+    res.redirect(url);
 
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Download error");
+    console.error("VIDEO ERROR:", err);
+    res.status(500).send("Download failed");
   }
 });
-
 // ✅ MP3
 app.get("/download-mp3", (req, res) => {
   try {
     const url = req.query.url;
 
-    if (!url || !ytdl.validateURL(url)) {
+    if (!url) {
       return res.status(400).send("Invalid URL");
     }
 
-    res.setHeader("Content-Disposition", "attachment; filename=audio.mp3");
-
-    ffmpeg(ytdl(url, { quality: "highestaudio" }))
-      .audioBitrate(128)
-      .format("mp3")
-      .pipe(res);
+    // ✅ redirect (placeholder for now)
+    res.redirect(url);
 
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Conversion error");
+    console.error("MP3 ERROR:", err);
+    res.status(500).send("Conversion failed");
   }
 });
 
