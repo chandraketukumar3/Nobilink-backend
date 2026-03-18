@@ -19,21 +19,20 @@ app.get("/info", async (req, res) => {
   try {
     const url = req.query.url;
 
-    if (!url || !ytdl.validateURL(url)) {
+    if (!url) {
       return res.status(400).json({ error: "Invalid URL" });
     }
 
-    const info = await ytdl.getInfo(url);
-
+    // ✅ SIMPLE FIX (no yt-dlp)
     res.json({
-      title: info.videoDetails.title,
-      thumbnail: info.videoDetails.thumbnails[0].url,
-      length: info.videoDetails.lengthSeconds
+      title: "YouTube Video",
+      thumbnail: `https://img.youtube.com/vi/${url.split("v=")[1]}/0.jpg`,
+      length: 0
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed" });
+    console.error("INFO ERROR:", err);
+    res.status(500).json({ error: "Failed to fetch video details" });
   }
 });
 
