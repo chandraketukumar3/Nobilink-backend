@@ -1,46 +1,99 @@
+const express = require("express");
 const ytdl = require("@distube/ytdl-core");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+const cors = require("cors");
 
+const app = express();
+app.use(cors());
+
+// ✅ FFmpeg setup
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-module.exports = async (req, res) => {
-    const { url, type } = req.query;
+// ✅ Root route
+app.get("/", (req, res) => {
+    res.send("Nobilink Backend Running 🚀");
+});
 
-    if (!url) {
-        return res.status(400).json({ error: "URL required" });
-    }
-
+// ✅ Video Info
+app.get("/info", async (req, res) => {
     try {
-        // ✅ VIDEO INFO
-        if (!type) {
-            const info = await ytdl.getInfo(url);
+        const url = req.query.url;
 
-            return res.status(200).json({
-                title: info.videoDetails.title,
-                thumbnail: info.videoDetails.thumbnails[0].url,
-                length: info.videoDetails.lengthSeconds,
-            });
+        if (!url || !ytdl.validateURL(url)) {
+            return res.status(400).json({ error: "Invalid URL" });
         }
 
-        // ⚠️ VIDEO DOWNLOAD
-        if (type === "mp4") {
-            res.setHeader("Content-Disposition", "attachment; filename=video.mp4");
-            return ytdl(url, { filter: "audioandvideo" }).pipe(res);
+        const info = await ytdl.getInfo(url);
+
+        res.json({
+            title: info.videoDetails.title,
+            thumbnail: info.videoDetails.thumbnails[0].url,
+            length: info.videoDetails.lengthSeconds
+        });
+
+    } catch (err) {
+        console.error("INFO ERROR:", err);
+        res.status(500).json({ error: "Failed to fetch video details" });
+    }
+});
+
+// ✅ Download Video
+app.get("/download-video", (req, res) => {
+    try {
+        const url = req.query.url;
+
+        if (!url || !ytdl.validateURL(url)) {
+            return res.status(400).send("Invalid URL");
         }
 
-        // ⚠️ MP3 DOWNLOAD
-        if (type === "mp3") {
-            res.setHeader("Content-Disposition", "attachment; filename=audio.mp3");
+        res.setHeader("Content-Disposition", "attachment; filename=video.mp4");
+        res.setHeader("Content-Type", "video/mp4");
 
-            return ffmpeg(ytdl(url, { quality: "highestaudio" }))
-                .audioBitrate(128)
-                .format("mp3")
-                .pipe(res);
-        }
+        const stream = ytdl(url, {
+            quality: "highest",
+            filter: "audioandvideo"
+        });
+
+        stream.pipe(res);
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Failed to process request" });
+        res.status(500).send("Error downloading video");
     }
-};
+});
+
+// ✅ Download MP3
+app.get("/download-mp3", (req, res) => {
+    try {
+        const url = req.query.url;
+
+        if (!url || !ytdl.validateURL(url)) {
+            return res.status(400).send("Invalid URL");
+        }
+
+        res.setHeader("Content-Disposition", "attachment; filename=audio.mp3");
+        res.setHeader("Content-Type", "audio/mpeg");
+
+        const stream = ytdl(url, { quality: "highestaudio" });
+
+        ffmpeg(stream)
+            .audioBitrate(128)
+            .format("mp3")
+            .on("error", (err) => {
+                console.error("FFmpeg Error:", err);
+                res.status(500).send("Conversion failed");
+            })
+            .pipe(res, { end: true });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Error converting");
+    }
+});
+
+// ✅ Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
