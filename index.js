@@ -23,10 +23,22 @@ app.get("/info", async (req, res) => {
       return res.status(400).json({ error: "Invalid URL" });
     }
 
-    // ✅ SIMPLE FIX (no yt-dlp)
+    // ✅ FIXED VIDEO ID EXTRACTION
+    let videoId = "";
+
+    if (url.includes("youtu.be")) {
+      videoId = url.split("/").pop().split("?")[0];
+    } else if (url.includes("v=")) {
+      videoId = url.split("v=")[1].split("&")[0];
+    }
+
+    if (!videoId) {
+      return res.status(400).json({ error: "Invalid YouTube URL" });
+    }
+
     res.json({
       title: "YouTube Video",
-      thumbnail: `https://img.youtube.com/vi/${url.split("v=")[1]}/0.jpg`,
+      thumbnail: `https://img.youtube.com/vi/${videoId}/0.jpg`,
       length: 0
     });
 
