@@ -7,15 +7,14 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-// ✅ FFmpeg setup
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// ✅ Root route
+// ✅ Health
 app.get("/", (req, res) => {
-    res.send("Nobilink Backend Running 🚀");
+    res.send("Backend running 🚀");
 });
 
-// ✅ Video Info
+// ✅ INFO
 app.get("/info", async (req, res) => {
     try {
         const url = req.query.url;
@@ -33,12 +32,12 @@ app.get("/info", async (req, res) => {
         });
 
     } catch (err) {
-        console.error("INFO ERROR:", err);
-        res.status(500).json({ error: "Failed to fetch video details" });
+        console.error(err);
+        res.status(500).json({ error: "Failed" });
     }
 });
 
-// ✅ Download Video
+// ✅ VIDEO
 app.get("/download-video", (req, res) => {
     try {
         const url = req.query.url;
@@ -48,22 +47,19 @@ app.get("/download-video", (req, res) => {
         }
 
         res.setHeader("Content-Disposition", "attachment; filename=video.mp4");
-        res.setHeader("Content-Type", "video/mp4");
 
-        const stream = ytdl(url, {
+        ytdl(url, {
             quality: "highest",
             filter: "audioandvideo"
-        });
-
-        stream.pipe(res);
+        }).pipe(res);
 
     } catch (err) {
         console.error(err);
-        res.status(500).send("Error downloading video");
+        res.status(500).send("Download error");
     }
 });
 
-// ✅ Download MP3
+// ✅ MP3
 app.get("/download-mp3", (req, res) => {
     try {
         const url = req.query.url;
@@ -73,27 +69,20 @@ app.get("/download-mp3", (req, res) => {
         }
 
         res.setHeader("Content-Disposition", "attachment; filename=audio.mp3");
-        res.setHeader("Content-Type", "audio/mpeg");
 
-        const stream = ytdl(url, { quality: "highestaudio" });
-
-        ffmpeg(stream)
+        ffmpeg(ytdl(url, { quality: "highestaudio" }))
             .audioBitrate(128)
             .format("mp3")
-            .on("error", (err) => {
-                console.error("FFmpeg Error:", err);
-                res.status(500).send("Conversion failed");
-            })
-            .pipe(res, { end: true });
+            .pipe(res);
 
     } catch (err) {
         console.error(err);
-        res.status(500).send("Error converting");
+        res.status(500).send("Conversion error");
     }
 });
 
-// ✅ Start server
+// ✅ START
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log("Server running on port " + PORT);
 });
