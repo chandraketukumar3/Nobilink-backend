@@ -66,58 +66,61 @@ app.get("/download-video", async (req, res) => {
 
     const data = await response.json();
 
-    if (!data?.link) {
-      console.log(data);
+    console.log("VIDEO DATA:", data);
+
+    // ✅ correct link extraction
+    const downloadUrl =
+      data?.links?.[0]?.link ||
+      data?.data?.[0]?.url ||
+      data?.url;
+
+    if (!downloadUrl) {
+      console.log("FULL RESPONSE:", data);
       return res.status(500).send("No video link found");
     }
 
-    res.redirect(data.link);
-
-  } catch (err) {
-    console.error("VIDEO ERROR:", err);
-    res.status(500).send("Download failed");
-  }
-});
+    res.redirect(downloadUrl);
 
 
-// 🔥 MP3 DOWNLOAD (RapidAPI)
-app.get("/download-mp3", async (req, res) => {
-  try {
-    const url = req.query.url;
+    // 🔥 MP3 DOWNLOAD (RapidAPI)
+    app.get("/download-mp3", async (req, res) => {
+      try {
+        const url = req.query.url;
 
-    if (!url) {
-      return res.status(400).send("Invalid URL");
-    }
-
-    const response = await fetch(
-      `https://youtube-mp3-audio-video-downloader.p.rapidapi.com/get_mp3_download_link/?video_link=${encodeURIComponent(url)}&quality=128`,
-      {
-        method: "GET",
-        headers: {
-          "X-RapidAPI-Key": "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4",
-          "X-RapidAPI-Host": "youtube-mp3-audio-video-downloader.p.rapidapi.com"
+        if (!url) {
+          return res.status(400).send("Invalid URL");
         }
-      }
-    );
 
-    const data = await response.json();
+        const response = await fetch(
+          `https://youtube-mp3-audio-video-downloader.p.rapidapi.com/get_mp3_download_link/?video_link=${encodeURIComponent(url)}&quality=128`,
+          {
+            method: "GET",
+            headers: {
+              "X-RapidAPI-Key": "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4",
+              "X-RapidAPI-Host": "youtube-mp3-audio-video-downloader.p.rapidapi.com"
+            }
+          }
+        );
 
-    if (!data?.link) {
-      console.log(data);
-      return res.status(500).send("No MP3 link found");
-    }
+        const data = await response.json();
 
-    res.redirect(data.link);
+        console.log("MP3 DATA:", data);
 
-  } catch (err) {
-    console.error("MP3 ERROR:", err);
-    res.status(500).send("Conversion failed");
-  }
-});
+        const downloadUrl =
+          data?.links?.[0]?.link ||
+          data?.data?.[0]?.url ||
+          data?.url;
+
+        if (!downloadUrl) {
+          console.log("FULL RESPONSE:", data);
+          return res.status(500).send("No MP3 link found");
+        }
+
+        res.redirect(downloadUrl);
 
 
-// ✅ START
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+        // ✅ START
+        const PORT = process.env.PORT || 5000;
+        app.listen(PORT, () => {
+          console.log("Server running on port " + PORT);
+        });
