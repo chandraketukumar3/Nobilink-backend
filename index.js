@@ -70,8 +70,10 @@ app.get("/download-video", async (req, res) => {
 
     // ✅ correct link extraction
     const downloadUrl =
+      data?.download_link ||
+      data?.links?.[0]?.url ||
       data?.links?.[0]?.link ||
-      data?.data?.[0]?.url ||
+      data?.data?.url ||
       data?.url;
 
     if (!downloadUrl) {
@@ -113,10 +115,11 @@ app.get("/download-mp3", async (req, res) => {
     console.log("MP3 DATA:", data);
 
     const downloadUrl =
+      data?.download_link ||
+      data?.links?.[0]?.url ||
       data?.links?.[0]?.link ||
-      data?.data?.[0]?.url ||
+      data?.data?.url ||
       data?.url;
-
     if (!downloadUrl) {
       console.log("FULL RESPONSE:", data);
       return res.status(500).send("No MP3 link found");
