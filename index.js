@@ -1,20 +1,16 @@
 const express = require("express");
-const ytdl = require("@distube/ytdl-core");
-const ffmpeg = require("fluent-ffmpeg");
-const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
 const cors = require("cors");
+const fetch = require("node-fetch");
 
 const app = express();
 app.use(cors());
-
-ffmpeg.setFfmpegPath(ffmpegPath);
 
 // ✅ Health
 app.get("/", (req, res) => {
   res.send("Backend running 🚀");
 });
 
-// ✅ INFO
+// ✅ INFO (thumbnail + basic)
 app.get("/info", async (req, res) => {
   try {
     const url = req.query.url;
@@ -23,7 +19,6 @@ app.get("/info", async (req, res) => {
       return res.status(400).json({ error: "Invalid URL" });
     }
 
-    // ✅ FIXED VIDEO ID EXTRACTION
     let videoId = "";
 
     if (url.includes("youtu.be")) {
@@ -48,8 +43,9 @@ app.get("/info", async (req, res) => {
   }
 });
 
-// ✅ VIDEO
-app.get("/download-video", (req, res) => {
+
+// 🔥 MP4 DOWNLOAD (RapidAPI)
+app.get("/download-video", async (req, res) => {
   try {
     const url = req.query.url;
 
@@ -57,16 +53,35 @@ app.get("/download-video", (req, res) => {
       return res.status(400).send("Invalid URL");
     }
 
-    // ✅ direct redirect to youtube (no crash)
-    res.redirect(url);
+    const response = await fetch(
+      `https://youtube-mp3-audio-video-downloader.p.rapidapi.com/get_video_download_link/?video_link=${encodeURIComponent(url)}&quality=720`,
+      {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4",
+          "X-RapidAPI-Host": "youtube-mp3-audio-video-downloader.p.rapidapi.com"
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data?.link) {
+      console.log(data);
+      return res.status(500).send("No video link found");
+    }
+
+    res.redirect(data.link);
 
   } catch (err) {
     console.error("VIDEO ERROR:", err);
     res.status(500).send("Download failed");
   }
 });
-// ✅ MP3
-app.get("/download-mp3", (req, res) => {
+
+
+// 🔥 MP3 DOWNLOAD (RapidAPI)
+app.get("/download-mp3", async (req, res) => {
   try {
     const url = req.query.url;
 
@@ -74,14 +89,32 @@ app.get("/download-mp3", (req, res) => {
       return res.status(400).send("Invalid URL");
     }
 
-    // ✅ redirect (placeholder for now)
-    res.redirect(url);
+    const response = await fetch(
+      `https://youtube-mp3-audio-video-downloader.p.rapidapi.com/get_mp3_download_link/?video_link=${encodeURIComponent(url)}&quality=128`,
+      {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4",
+          "X-RapidAPI-Host": "youtube-mp3-audio-video-downloader.p.rapidapi.com"
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data?.link) {
+      console.log(data);
+      return res.status(500).send("No MP3 link found");
+    }
+
+    res.redirect(data.link);
 
   } catch (err) {
     console.error("MP3 ERROR:", err);
     res.status(500).send("Conversion failed");
   }
 });
+
 
 // ✅ START
 const PORT = process.env.PORT || 5000;
