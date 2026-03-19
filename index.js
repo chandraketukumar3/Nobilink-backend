@@ -5,12 +5,15 @@ const fetch = require("node-fetch");
 const app = express();
 app.use(cors());
 
+const API_KEY = "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4";
+const API_HOST = "youtube-mp3-audio-video-downloader.p.rapidapi.com";
+
 // ✅ Health
 app.get("/", (req, res) => {
   res.send("Backend running 🚀");
 });
 
-// ✅ INFO (thumbnail + basic)
+// ✅ INFO
 app.get("/info", async (req, res) => {
   try {
     const url = req.query.url;
@@ -44,7 +47,11 @@ app.get("/info", async (req, res) => {
 });
 
 
-// 🔥 MP4 DOWNLOAD (RapidAPI)
+// 🔥 WAIT FUNCTION
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+
+// 🔥 VIDEO DOWNLOAD (FIXED)
 app.get("/download-video", async (req, res) => {
   try {
     const url = req.query.url;
@@ -53,44 +60,54 @@ app.get("/download-video", async (req, res) => {
       return res.status(400).send("Invalid URL");
     }
 
-    const response = await fetch(
-      `https://youtube-mp3-audio-video-downloader.p.rapidapi.com/get_video_download_link/?video_link=${encodeURIComponent(url)}&quality=720`,
+    // STEP 1: request
+    let response = await fetch(
+      `https://${API_HOST}/get_video_download_link/?video_link=${encodeURIComponent(url)}&quality=720&wait_until_the_file_is_ready=false`,
       {
-        method: "GET",
         headers: {
-          "X-RapidAPI-Key": "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4",
-          "X-RapidAPI-Host": "youtube-mp3-audio-video-downloader.p.rapidapi.com"
+          "X-RapidAPI-Key": API_KEY,
+          "X-RapidAPI-Host": API_HOST
         }
       }
     );
 
-    const data = await response.json();
+    let data = await response.json();
+    console.log("STEP 1:", data);
 
-    console.log("VIDEO DATA:", data);
+    // STEP 2: WAIT + retry
+    if (!data?.download_link) {
+      await wait(3000);
 
-    // ✅ correct link extraction
-    const downloadUrl =
-      data?.download_link ||
-      data?.links?.[0]?.url ||
-      data?.links?.[0]?.link ||
-      data?.data?.url ||
-      data?.url;
+      response = await fetch(
+        `https://${API_HOST}/get_video_download_link/?video_link=${encodeURIComponent(url)}&quality=720&wait_until_the_file_is_ready=true`,
+        {
+          headers: {
+            "X-RapidAPI-Key": API_KEY,
+            "X-RapidAPI-Host": API_HOST
+          }
+        }
+      );
+
+      data = await response.json();
+      console.log("STEP 2:", data);
+    }
+
+    const downloadUrl = data?.download_link;
 
     if (!downloadUrl) {
-      console.log("FULL RESPONSE:", data);
       return res.status(500).send("No video link found");
     }
 
     res.redirect(downloadUrl);
 
   } catch (err) {
-    console.error("VIDEO DOWNLOAD ERROR:", err);
-    res.status(500).send("Failed to get video download link");
+    console.error("VIDEO ERROR:", err);
+    res.status(500).send("Download failed");
   }
 });
 
 
-// 🔥 MP3 DOWNLOAD (RapidAPI)
+// 🔥 MP3 DOWNLOAD (FIXED)
 app.get("/download-mp3", async (req, res) => {
   try {
     const url = req.query.url;
@@ -99,37 +116,47 @@ app.get("/download-mp3", async (req, res) => {
       return res.status(400).send("Invalid URL");
     }
 
-    const response = await fetch(
-      `https://youtube-mp3-audio-video-downloader.p.rapidapi.com/get_mp3_download_link/?video_link=${encodeURIComponent(url)}&quality=128`,
+    let response = await fetch(
+      `https://${API_HOST}/get_mp3_download_link/?video_link=${encodeURIComponent(url)}&quality=128&wait_until_the_file_is_ready=false`,
       {
-        method: "GET",
         headers: {
-          "X-RapidAPI-Key": "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4",
-          "X-RapidAPI-Host": "youtube-mp3-audio-video-downloader.p.rapidapi.com"
+          "X-RapidAPI-Key": API_KEY,
+          "X-RapidAPI-Host": API_HOST
         }
       }
     );
 
-    const data = await response.json();
+    let data = await response.json();
+    console.log("MP3 STEP 1:", data);
 
-    console.log("MP3 DATA:", data);
+    if (!data?.download_link) {
+      await wait(3000);
 
-    const downloadUrl =
-      data?.download_link ||
-      data?.links?.[0]?.url ||
-      data?.links?.[0]?.link ||
-      data?.data?.url ||
-      data?.url;
+      response = await fetch(
+        `https://${API_HOST}/get_mp3_download_link/?video_link=${encodeURIComponent(url)}&quality=128&wait_until_the_file_is_ready=true`,
+        {
+          headers: {
+            "X-RapidAPI-Key": API_KEY,
+            "X-RapidAPI-Host": API_HOST
+          }
+        }
+      );
+
+      data = await response.json();
+      console.log("MP3 STEP 2:", data);
+    }
+
+    const downloadUrl = data?.download_link;
+
     if (!downloadUrl) {
-      console.log("FULL RESPONSE:", data);
       return res.status(500).send("No MP3 link found");
     }
 
     res.redirect(downloadUrl);
 
   } catch (err) {
-    console.error("MP3 DOWNLOAD ERROR:", err);
-    res.status(500).send("Failed to get MP3 download link");
+    console.error("MP3 ERROR:", err);
+    res.status(500).send("Conversion failed");
   }
 });
 
