@@ -81,46 +81,58 @@ app.get("/download-video", async (req, res) => {
 
     res.redirect(downloadUrl);
 
+  } catch (err) {
+    console.error("VIDEO DOWNLOAD ERROR:", err);
+    res.status(500).send("Failed to get video download link");
+  }
+});
 
-    // 🔥 MP3 DOWNLOAD (RapidAPI)
-    app.get("/download-mp3", async (req, res) => {
-      try {
-        const url = req.query.url;
 
-        if (!url) {
-          return res.status(400).send("Invalid URL");
+// 🔥 MP3 DOWNLOAD (RapidAPI)
+app.get("/download-mp3", async (req, res) => {
+  try {
+    const url = req.query.url;
+
+    if (!url) {
+      return res.status(400).send("Invalid URL");
+    }
+
+    const response = await fetch(
+      `https://youtube-mp3-audio-video-downloader.p.rapidapi.com/get_mp3_download_link/?video_link=${encodeURIComponent(url)}&quality=128`,
+      {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4",
+          "X-RapidAPI-Host": "youtube-mp3-audio-video-downloader.p.rapidapi.com"
         }
+      }
+    );
 
-        const response = await fetch(
-          `https://youtube-mp3-audio-video-downloader.p.rapidapi.com/get_mp3_download_link/?video_link=${encodeURIComponent(url)}&quality=128`,
-          {
-            method: "GET",
-            headers: {
-              "X-RapidAPI-Key": "31ee78f03emsh8762673ddb9b0d4p18a8c7jsne1e8c84525c4",
-              "X-RapidAPI-Host": "youtube-mp3-audio-video-downloader.p.rapidapi.com"
-            }
-          }
-        );
+    const data = await response.json();
 
-        const data = await response.json();
+    console.log("MP3 DATA:", data);
 
-        console.log("MP3 DATA:", data);
+    const downloadUrl =
+      data?.links?.[0]?.link ||
+      data?.data?.[0]?.url ||
+      data?.url;
 
-        const downloadUrl =
-          data?.links?.[0]?.link ||
-          data?.data?.[0]?.url ||
-          data?.url;
+    if (!downloadUrl) {
+      console.log("FULL RESPONSE:", data);
+      return res.status(500).send("No MP3 link found");
+    }
 
-        if (!downloadUrl) {
-          console.log("FULL RESPONSE:", data);
-          return res.status(500).send("No MP3 link found");
-        }
+    res.redirect(downloadUrl);
 
-        res.redirect(downloadUrl);
+  } catch (err) {
+    console.error("MP3 DOWNLOAD ERROR:", err);
+    res.status(500).send("Failed to get MP3 download link");
+  }
+});
 
 
-        // ✅ START
-        const PORT = process.env.PORT || 5000;
-        app.listen(PORT, () => {
-          console.log("Server running on port " + PORT);
-        });
+// ✅ START
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
